@@ -155,14 +155,15 @@ public class Sender  implements Runnable {
         String delimiter = "";
         for (int i = 0; i < windowSize; i++) {
             if (windowPos + i >= ackdPackets.size()) {
-                break;
+                window += delimiter;
+                window += "-";
+                delimiter = ", ";
+                continue;
             }
             window += delimiter;
-            if (packetIndex == windowPos + i) {
-                window += "^";
-            }
+
             window += windowPos + i;
-            if (!ackdPackets.get(windowPos + i)) {
+            if (!ackdPackets.get(windowPos + i) && sentPackets.get(windowPos + i)) {
                 window += "*";
             }
             delimiter = ", ";
@@ -209,7 +210,7 @@ public class Sender  implements Runnable {
                 index = packetIndex;
                 
                 //Increment packetIndex if necessary else recv (end of window)
-                if (packetIndex < (windowPos + windowSize) - 1 && packetIndex < packetCount - 1) {
+                if (packetIndex < (windowPos + windowSize) && packetIndex < packetCount - 1) {
                     packetIndex = packetIndex < packetCount - 1 ? packetIndex + 1 : packetIndex;
                 } else {
                     try {

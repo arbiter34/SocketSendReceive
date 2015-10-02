@@ -48,7 +48,7 @@ public class Receiver implements Runnable {
         try {
             socket.send(packet);
         } catch (IOException e) {
-            System.out.println("Error sending ACK Packet" + packet.getData()[0]);
+            System.out.println("Error sending ACK Packet " + packet.getData()[0]);
         }
     }
     
@@ -56,10 +56,32 @@ public class Receiver implements Runnable {
         
         try {
             sendPacket(packet);
-            System.out.println("Packet " + packet.getData()[0] + " ACK Sent");
+            //System.out.println("Packet " + packet.getData()[0] + " ACK Sent " + buildWindowString());
         } catch (SocketException e) {
             System.out.println("Whoops!");
         }
+    }
+    
+        private String buildWindowString() {
+        String window = "[";
+        String delimiter = "";
+        for (int i = 0; i < windowSize; i++) {
+            if (windowPos + i >= rcvdPackets.size()) {
+                window += delimiter;
+                window += "-";
+                delimiter = ", ";
+                continue;
+            }
+            window += delimiter;
+
+            window += windowPos + i;
+            if (rcvdPackets.get(windowPos + i)) {
+                window += "#";
+            }
+            delimiter = ", ";
+        }
+        window += "]";
+        return window;
     }
     
     private void recvPacket(DatagramPacket packet) throws SocketException {
@@ -120,9 +142,10 @@ public class Receiver implements Runnable {
                 continue;
             }  
             
+            System.out.println("Received Packet" + packet.getData()[0] + " Send ACK " + packet.getData()[0] + " " + buildWindowString());
+            
             //Mark received
             rcvdPackets.set(packet.getData()[0], true);
-            System.out.println("Received Packet" + packet.getData()[0]);
 
             //Send ACK
             sendACK(packet);
