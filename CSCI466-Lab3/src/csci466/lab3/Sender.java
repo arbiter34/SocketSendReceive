@@ -215,6 +215,7 @@ public class Sender  implements Runnable {
         int index;
         //Indicates whether current send is a resend
         boolean resendPacket = false;
+        boolean receivePacket = false;
         
         //Try send header
         try {
@@ -238,28 +239,32 @@ public class Sender  implements Runnable {
                 break;
             }
             
-            String result = "";
-            
-            //Using resendPackets like a pseudo-interrupt
-            if (!resendPackets.isEmpty()) {
-                index = resendPackets.poll();
-                resendPacket = true;
-            } else {                      
-                index = packetIndex;
-                
-                //Increment packetIndex if necessary else recv (end of window)
-                if (packetIndex < (windowPos + windowSize) && packetIndex < packetCount - 1) {
-                    packetIndex = packetIndex < packetCount - 1 ? packetIndex + 1 : packetIndex;
-                } else {
+            //If we aren't resending and at end of window, listen for ACK
+            if ((packetIndex >= windowPos + windowSize || packetIndex >= packetCount) && resendPackets.isEmpty()) {
                     try {
                         recvPacket();
                     } catch (IOException e) {
                         System.out.println("Whoops!");
                     }
-                }
+                    continue;
+            }
+            
+            String result = "";
+            
+            //Check if packets are waiting to resend
+            if (!resendPackets.isEmpty()) {
+                index = resendPackets.poll();
+                resendPacket = true;
+            } else {         
+                
+                //Get current packet index
+                index = packetIndex;
+                
+                //Increment the index
+                packetIndex++;
                 
                 //If packet has been sent and is not a resend, skip
-                if (sentPackets.get(index)) {
+                if (sentPackets.get(index) || index > windowPos + windowSize) {
                     continue;
                 }
             }
@@ -267,7 +272,7 @@ public class Sender  implements Runnable {
               
             try {
                 //resendPacket is to override the skip behavior
-                if (!skipPackets.get(index) || resendPacket) {
+                if ((!sentPackets.get(index) && !skipPackets.get(index)) || resendPacket) {
                     sendPacket(packets.get(index));
                 }
             } catch (Exception ex) {
@@ -286,11 +291,12 @@ public class Sender  implements Runnable {
             timeoutTimers.set(index, new Timer("Packet"+index));
             timeoutTimers.get(index).schedule(new RemindTask(index), TIMEOUT);
 
-            //Build resent string for debug output
+            //Build sent string for debug output
             result = "Packet " + index + " Sent";
             
             //Debug output
             System.out.println(result + buildWindowString());
+            
         }
         //Debug output finished
         System.out.println("Sender finished");
