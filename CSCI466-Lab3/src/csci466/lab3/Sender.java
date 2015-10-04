@@ -1,7 +1,8 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Sender Class
+ * Travis Alpers and Brian Lamb
+ * CSCI466 - Networks
+ * Lab 3
  */
 package csci466.lab3;
 
@@ -21,10 +22,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- *
- * @author alperst
- */
 public class Sender  implements Runnable {    
     
     private static final int TIMEOUT = 2000;
@@ -37,28 +34,40 @@ public class Sender  implements Runnable {
     
     private int packetIndex;
     
+    //Header packet for sequence information
     private final DatagramPacket headerPacket;
     
+    //List of packets
     private final List<DatagramPacket> packets;
     
+    //List of packets to skip
     private final List<Boolean> skipPackets; 
     
+    //List of timers for packet timeout
     private List<Timer> timeoutTimers;
     
+    //List of packets sent
     private final List<Boolean> sentPackets;
     
+    //List of packets acknowleged
     private List<Boolean> ackdPackets;
     
+    //Sender port
     private final int port;
     
+    //Sender socket
     private DatagramSocket socket;
     
+    //Destination address
     private final InetAddress address;
     
-    public volatile boolean running = false;
-    
+    //Queue of packets to resend(occurs when packet times out) 
+    //Using concurrent queue for thread safety
     private final Queue<Integer> resendPackets;
     
+    /*
+     * CTOR
+     */
     public Sender(int windowSize, int packetCount, int port, String addressString, int destPort, List<Boolean> skipPackets) throws UnknownHostException {
         this.packetCount = packetCount;
         this.windowPos = 0;
@@ -90,6 +99,11 @@ public class Sender  implements Runnable {
         }
     }
     
+    /*
+     * Called from timer
+     * Checks if packet has been ACK'd
+     * If not, adds to resend queue
+     */
     public void checkPacketTimeout(int packetIndex) {
         //Check for ACK
         if (!ackdPackets.get(packetIndex)) {
@@ -99,12 +113,18 @@ public class Sender  implements Runnable {
         }
     }
     
+    /*
+     * Initialize socket
+     */
     private void init() throws SocketException {
         //Build socket
         socket = new DatagramSocket(port);    
         socket.setSoTimeout(TIMEOUT);
     }
     
+    /*
+     * Send packet on instance socket
+     */
     private void sendPacket(DatagramPacket packet) throws SocketException, IOException {
         //Check alive
         if (socket == null || !socket.isBound()) {
@@ -114,6 +134,9 @@ public class Sender  implements Runnable {
         socket.send(packet);
     }
     
+    /*
+     * Receive packet and do necessary window actions
+     */
     private void recvPacket() throws SocketException {
         //Check alive
         if (socket == null || !socket.isBound()) {
@@ -150,6 +173,9 @@ public class Sender  implements Runnable {
         
     }
     
+    /*
+     * Function to build string showing current window status
+     */
     private String buildWindowString() {
         String window = "[";
         String delimiter = "";
@@ -172,30 +198,42 @@ public class Sender  implements Runnable {
         return window;
     }
     
+    /*
+     * Build our header packet data
+     */
     private void buildHeader(byte[] data) {
         data[0] = -1;
         data[1] = (byte)packetCount;
         data[2] = (byte)windowSize;
     }
 
+    /* 
+     * Main control method
+     */
     @Override
     public void run() {
-        running = true;
         int index;
+        //Indicates whether current send is a resend
         boolean resendPacket = false;
         
+        //Try send header
         try {
             sendPacket(headerPacket);
         } catch (Exception e) {
             System.out.println("Whoops!");
         }
         
+        //Main loop
         while (true) {
+            
+            //Sleep to prevent processor consumption
             try {
                 Thread.sleep(25);
             } catch (InterruptedException ex) {
                 Logger.getLogger(Sender.class.getName()).log(Level.SEVERE, null, ex);
             }
+            
+            //If all packets ACK'd exit
             if (allPacketsAckd()) {
                 break;
             }
@@ -238,6 +276,7 @@ public class Sender  implements Runnable {
                 continue;
             }
             
+            //End of resend sequence, mark false
             resendPacket = false;
             
             //Mark Packet sent
@@ -247,14 +286,19 @@ public class Sender  implements Runnable {
             timeoutTimers.set(index, new Timer("Packet"+index));
             timeoutTimers.get(index).schedule(new RemindTask(index), TIMEOUT);
 
-
+            //Build resent string for debug output
             result = "Packet " + index + " Sent";
-
+            
+            //Debug output
             System.out.println(result + buildWindowString());
         }
+        //Debug output finished
         System.out.println("Sender finished");
     }
     
+    /*
+     * Helper function to indicate all packets ACK'd
+     */
     private boolean allPacketsAckd() {
         //Assume true
         boolean res = true;
@@ -269,6 +313,9 @@ public class Sender  implements Runnable {
         return res;
     }
     
+    /* 
+     * Timer callback Task for packet timeout 
+     */
     class RemindTask extends TimerTask {
         private int packetIndex;
         

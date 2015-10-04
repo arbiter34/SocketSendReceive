@@ -1,7 +1,8 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Main Class for Sender
+ * Travis Alpers and Brian Lamb
+ * CSCI466 - Networks
+ * Lab 3
  */
 package csci466.lab3;
 
@@ -12,21 +13,18 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author alperst
- */
 public class Main {
 
-    /**
-     * @param args the command line arguments
-     */
     public static void main(String[] args) {
+        //BufferedReader for console input
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         
+        //Strings to hold user inputted values 
         String windowSizeString;
         String maxSequenceString;
         String droppedPacketsString;
+        
+        //Get user input
         try {
             System.out.print("Enter the window's size on the sender: ");
             windowSizeString = br.readLine();
@@ -39,10 +37,12 @@ public class Main {
             return;
         }
         
+        //Convert user input to useful data types
         Integer windowSize = new Integer(windowSizeString);
         Integer maxSequence = new Integer(maxSequenceString);
         String[] skipList = droppedPacketsString.split(",");
         
+        //Build list of packets to skip
         List<Boolean> skipPackets = new ArrayList<>();
         for (int i = 0; i < maxSequence; i++) {
             skipPackets.add(false);
@@ -56,7 +56,7 @@ public class Main {
             }
         }
         
-        
+        //Create thread with sender instance
         Thread sender = null;
         try {
             sender = new Thread(new Sender(windowSize, maxSequence, 4243, "localhost", 4242, skipPackets));
@@ -64,6 +64,7 @@ public class Main {
             System.out.println("Unknown host");
         }
         
+        //If construction successful - RUN
         if (sender != null) {
             sender.start();
         }

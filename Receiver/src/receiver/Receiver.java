@@ -1,7 +1,8 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Receiver Class 
+ * Travis Alpers and Brian Lamb
+ * CSCI466 - Networks
+ * Lab 3
  */
 package receiver;
 
@@ -12,10 +13,6 @@ import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- * @author alperst
- */
 public class Receiver implements Runnable {
     
     private DatagramSocket socket;
@@ -32,19 +29,29 @@ public class Receiver implements Runnable {
     
     private List<Boolean> rcvdPackets;
     
+    /*
+     * ctor 
+     */
     public Receiver(int port) {
         this.port = port;
     }
     
+    /* 
+     * Initialize the socket 
+     */
     private void init() throws SocketException {
         socket = new DatagramSocket(port);
     }
     
+    /*
+     * Sends packet on instance socket
+     */
     private void sendPacket(DatagramPacket packet) throws SocketException {
         //Check alive
         if (socket == null || !socket.isBound()) {
             init();
         }
+        //Try send packet
         try {
             socket.send(packet);
         } catch (IOException e) {
@@ -52,6 +59,9 @@ public class Receiver implements Runnable {
         }
     }
     
+    /*
+     * Send Acknowledgement, Reusing same packet that was received
+     */
     private void sendACK(DatagramPacket packet) {
         
         try {
@@ -62,7 +72,10 @@ public class Receiver implements Runnable {
         }
     }
     
-        private String buildWindowString() {
+    /*
+     * Build string to show current Window
+     */
+    private String buildWindowString() {
         String window = "[";
         String delimiter = "";
         for (int i = 0; i < windowSize; i++) {
@@ -84,6 +97,9 @@ public class Receiver implements Runnable {
         return window;
     }
     
+    /*
+     * Recieve packet 
+     */
     private void recvPacket(DatagramPacket packet) throws SocketException {
         //Check alive
         if (socket == null || !socket.isBound()) {
@@ -98,6 +114,10 @@ public class Receiver implements Runnable {
         }
     }
     
+    /*
+     * Check if all packets have been received
+     * Packet informatin is given in header packet
+     */
     private boolean allPacketsRcvd() {
         boolean res = true;
         for (int i = 0; i < packetCount; i++) {
@@ -108,40 +128,62 @@ public class Receiver implements Runnable {
         return res;
     }
 
+    /*
+     * Main work method
+     * Loop until header is received and then all packets are received
+     */
     @Override
     public void run() {  
+        //Debug startup message
         System.out.println("Receiver Listening...");
+        
+        //Main Loop
         while (true) {
-            //Check if we are done
+            
+            //Check if we are done - all packets received after header
             if (headerReceived && allPacketsRcvd()) {
                 break;
             }
             
+            //Create array for recieving data
             byte[] data = new byte[1024];
+            //Create packet for receiving
             DatagramPacket packet = new DatagramPacket(data, data.length);
+            
+            //Try receive
             try {
                 recvPacket(packet);
             } catch (SocketException e) {
                 System.out.println("Whoops!");
             }
             
-            //This is init packet - init vars
+            //We have defined a header packet
+            //as one which has -1 as first byte value
             if (packet.getData()[0] == -1) {
+                //Header Packet Structure
+                //Second byte is packetCount
                 packetCount = packet.getData()[1];
+                //Third byte is windowSize
                 windowSize = packet.getData()[2];
+                //Restart windowPos
                 windowPos = 0;
+                //Init received packet array
                 rcvdPackets = new ArrayList<>();
                 for (int i = 0; i < packetCount; i++) {
                     rcvdPackets.add(Boolean.FALSE);
                 }
+                //Mark header packet received
                 headerReceived = true;
+           
                 continue;
             } 
             
+            //If we haven't received the header packet do nothing
             if (!headerReceived) {
                 continue;
             }  
             
+            //Print packet received
             System.out.println("Received Packet" + packet.getData()[0] + " Send ACK " + packet.getData()[0] + " " + buildWindowString());
             
             //Mark received
@@ -156,6 +198,7 @@ public class Receiver implements Runnable {
             }         
             
         }
+        //Debug message to state done
         System.out.println("Receiver done.");
     }
     
