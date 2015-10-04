@@ -183,9 +183,6 @@ public class Receiver implements Runnable {
                 continue;
             }  
             
-            //Print packet received
-            System.out.println("Received Packet" + packet.getData()[0] + " Send ACK " + packet.getData()[0] + " " + buildWindowString());
-            
             //Mark received
             rcvdPackets.set(packet.getData()[0], true);
 
@@ -195,7 +192,10 @@ public class Receiver implements Runnable {
             //Advance window
             while (windowPos < rcvdPackets.size() && rcvdPackets.get(windowPos)) {
                 windowPos++;
-            }         
+            }      
+            
+            //Print packet received
+            System.out.println("Received Packet" + packet.getData()[0] + " Send ACK " + packet.getData()[0] + " " + buildWindowString());   
             
         }
         //Debug message to state done
